@@ -1,0 +1,54 @@
+---
+- name: System Setup Automation
+  hosts: localhost
+  become: yes  # Run as sudo
+
+  tasks:
+    - name: Install essential packages
+      apt:
+        name:
+          - nginx
+          - git
+          - vim
+        state: present
+        update_cache: yes
+
+    - name: Create a new user 'devops'
+      user:
+        name: devops
+        state: present
+        shell: /bin/bash
+        create_home: yes
+
+    - name: Allow SSH for 'devops' user
+      lineinfile:
+        path: /etc/sudoers
+        line: 'devops ALL=(ALL) NOPASSWD:ALL'
+        validate: 'visudo -cf %s'
+
+    - name: Configure firewall rules with iptables
+      block:
+        - name: Allow SSH
+          iptables:
+            chain: INPUT
+            protocol: tcp
+            destination_port: 22
+            jump: ACCEPT
+
+        - name: Allow HTTP
+          iptables:
+            chain: INPUT
+            protocol: tcp
+            destination_port: 80
+            jump: ACCEPT
+
+        - name: Allow established connections
+          iptables:
+            chain: INPUT
+            ctstate: RELATED,ESTABLISHED
+            jump: ACCEPT
+
+        - name: Block everything else
+          iptables:
+            chain: INPUT
+            jump: DROP
